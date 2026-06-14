@@ -15,8 +15,6 @@ import (
 	"runtime"
 	"testing"
 
-	"github.com/cli/cli/v2/internal/gh/ghtelemetry"
-	"github.com/cli/cli/v2/internal/telemetry"
 	"github.com/cli/cli/v2/pkg/cmdutil"
 	"github.com/cli/cli/v2/pkg/httpmock"
 	"github.com/cli/cli/v2/pkg/iostreams"
@@ -113,7 +111,7 @@ func TestNewCmdCopilot(t *testing.T) {
 			assert.NoError(t, err)
 
 			var gotOpts *CopilotOptions
-			cmd := NewCmdCopilot(f, &telemetry.CommandRecorderSpy{}, func(opts *CopilotOptions) error {
+			cmd := NewCmdCopilot(f, func(opts *CopilotOptions) error {
 				gotOpts = opts
 				return nil
 			})
@@ -614,20 +612,4 @@ func TestRunCopilot_execFailureHint(t *testing.T) {
 	require.Error(t, err)
 	require.ErrorIs(t, err, execErr)
 	require.Contains(t, err.Error(), "try running `copilot` directly without `gh`.")
-}
-
-func TestCopilotCommandIsSampledAt100(t *testing.T) {
-	spy := &telemetry.CommandRecorderSpy{}
-	factory := &cmdutil.Factory{}
-	cmd := NewCmdCopilot(factory, spy, func(opts *CopilotOptions) error {
-		return nil
-	})
-	cmd.SetArgs([]string{})
-	cmd.SetIn(&bytes.Buffer{})
-	cmd.SetOut(&bytes.Buffer{})
-	cmd.SetErr(&bytes.Buffer{})
-
-	_, err := cmd.ExecuteC()
-	require.NoError(t, err)
-	require.Equal(t, ghtelemetry.SAMPLE_ALL, spy.LastSampleRate)
 }

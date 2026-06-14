@@ -44,10 +44,6 @@ func NewCmdShellAlias(io *iostreams.IOStreams, aliasName, aliasValue string) *co
 		DisableFlagParsing: true,
 	}
 	cmdutil.DisableAuthCheck(cmd)
-	// Aliases are user-defined names and must not be reported as telemetry
-	// dimensions, since the name itself may be sensitive (e.g. project or
-	// organization names).
-	cmdutil.DisableTelemetry(cmd)
 	return cmd
 }
 
@@ -68,10 +64,6 @@ func NewCmdAlias(io *iostreams.IOStreams, aliasName, aliasValue string) *cobra.C
 		DisableFlagParsing: true,
 	}
 	cmdutil.DisableAuthCheck(cmd)
-	// Aliases are user-defined names and must not be reported as telemetry
-	// dimensions, since the name itself may be sensitive (e.g. project or
-	// organization names).
-	cmdutil.DisableTelemetry(cmd)
 	return cmd
 }
 
