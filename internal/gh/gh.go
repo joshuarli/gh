@@ -59,9 +59,6 @@ type Config interface {
 	PreferEditorPrompt(hostname string) ConfigEntry
 	// Spinner returns the configured spinner setting, optionally scoped by host.
 	Spinner(hostname string) ConfigEntry
-	// Telemetry returns the configured telemetry setting, ignoring host scoping since telemetry is a global setting.
-	Telemetry() ConfigEntry
-
 	// Aliases provides persistent storage and modification of command aliases.
 	Aliases() AliasConfig
 

@@ -43,7 +43,8 @@ func NewCmdExtension(io *iostreams.IOStreams, em extensions.ExtensionManager, ex
 		RunE: func(c *cobra.Command, args []string) error {
 			args = append([]string{ext.Name()}, args...)
 			if _, err := em.Dispatch(args, io.In, io.Out, io.ErrOut); err != nil {
-				if execError, ok := errors.AsType[*exec.ExitError](err); ok {
+				var execError *exec.ExitError
+				if errors.As(err, &execError) {
 					return &ExternalCommandExitError{execError}
 				}
 				return fmt.Errorf("failed to run extension: %w\n", err)
@@ -78,14 +79,6 @@ func NewCmdExtension(io *iostreams.IOStreams, em extensions.ExtensionManager, ex
 	}
 
 	cmdutil.DisableAuthCheck(cmd)
-	// Extensions are user-installed and their names can be arbitrary
-	// (potentially including sensitive identifiers such as project or
-	// organization names), so we must not record telemetry for them by
-	// default. Official GitHub-owned extensions are a known, fixed set and
-	// can safely contribute their command name to telemetry.
-	if !extensions.IsOfficial(ext) {
-		cmdutil.DisableTelemetry(cmd)
-	}
 
 	return cmd
 }

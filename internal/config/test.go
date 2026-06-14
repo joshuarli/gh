@@ -75,9 +75,6 @@ func NewMockConfigFromString(cfgString string) *ghmock.ConfigMock {
 	mock.ClipboardFunc = func() gh.ConfigEntry {
 		return cfg.Clipboard()
 	}
-	mock.TelemetryFunc = func() gh.ConfigEntry {
-		return cfg.Telemetry()
-	}
 	mock.ColorLabelsFunc = func(hostname string) gh.ConfigEntry {
 		return cfg.ColorLabels(hostname)
 	}
