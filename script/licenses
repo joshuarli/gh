@@ -13,18 +13,7 @@
 
 set -e
 
-GO_LICENSES_VERSION="github.com/google/go-licenses/v2@3e084b0caf710f7bfead967567539214f598c0a2" # v2.0.1
-
-# Install pinned version of go-licenses
-go install "$GO_LICENSES_VERSION"
-
-GO_LICENSES="$(go env GOPATH)/bin/go-licenses"
-
-# Verify go-licenses is available
-if [ ! -x "$GO_LICENSES" ]; then
-    echo "Error: go-licenses is not installed at $GO_LICENSES"
-    exit 1
-fi
+GO_LICENSES="go run github.com/google/go-licenses/v2@3e084b0caf710f7bfead967567539214f598c0a2" # v2.0.1
 
 generate_licenses() {
     local goos="$1"
@@ -35,16 +24,18 @@ generate_licenses() {
     mkdir -p "${output_dir}"
 
     # Generate the report listing (name, license type, URL)
-    GOOS="${goos}" GOARCH="${goarch}" "$GO_LICENSES" report ./... \
+    GOOS="${goos}" GOARCH="${goarch}" $GO_LICENSES report ./... \
         --template .github/licenses.tmpl \
         --ignore github.com/cli/cli \
+        --ignore github.com/alecthomas/chroma/v2 \
         > "${output_dir}/report.txt"
 
     # Save license files, stripping source code
     rm -rf "${output_dir}/third-party"
-    GOOS="${goos}" GOARCH="${goarch}" "$GO_LICENSES" save ./... \
+    GOOS="${goos}" GOARCH="${goarch}" $GO_LICENSES save ./... \
         --save_path="${output_dir}/third-party" \
         --ignore github.com/cli/cli \
+        --ignore github.com/alecthomas/chroma/v2 \
         --force
 
     # Remove everything except LICENSE and NOTICE files. go-licenses save copies
