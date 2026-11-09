@@ -16,6 +16,8 @@ set -e
 # Install pinned version of go-licenses
 go install github.com/google/go-licenses/v2@3e084b0caf710f7bfead967567539214f598c0a2 # v2.0.1
 
+export PATH="$(go env GOPATH)/bin:$PATH"
+
 # Verify go-licenses is available
 if ! command -v go-licenses &> /dev/null; then
     echo "Error: go-licenses is not installed or not on PATH"
