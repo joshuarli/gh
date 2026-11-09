@@ -13,18 +13,30 @@
 
 set -e
 
-GO_LICENSES="go run github.com/google/go-licenses/v2@3e084b0caf710f7bfead967567539214f598c0a2" # v2.0.1
+GO_LICENSES_VERSION="github.com/google/go-licenses/v2@3e084b0caf710f7bfead967567539214f598c0a2" # v2.0.1
+GO_LICENSES_BIN="${GO_LICENSES_BIN:-$(go env GOPATH)/bin/go-licenses}"
+
+ensure_go_licenses() {
+    if [ -x "$GO_LICENSES_BIN" ]; then
+        return
+    fi
+    echo "Installing go-licenses for host..."
+    # Build/install for the host; target GOOS/GOARCH are set by callers for analysis.
+    GOOS="$(go env GOHOSTOS)" GOARCH="$(go env GOHOSTARCH)" go install "$GO_LICENSES_VERSION"
+}
 
 generate_licenses() {
     local goos="$1"
     local goarch="$2"
     local output_dir="$3"
 
+    ensure_go_licenses
+
     echo "Generating licenses for ${goos}/${goarch}..."
     mkdir -p "${output_dir}"
 
     # Generate the report listing (name, license type, URL)
-    GOOS="${goos}" GOARCH="${goarch}" $GO_LICENSES report ./... \
+    GOOS="${goos}" GOARCH="${goarch}" "$GO_LICENSES_BIN" report ./... \
         --template .github/licenses.tmpl \
         --ignore github.com/cli/cli \
         --ignore github.com/alecthomas/chroma/v2 \
@@ -32,7 +44,7 @@ generate_licenses() {
 
     # Save license files, stripping source code
     rm -rf "${output_dir}/third-party"
-    GOOS="${goos}" GOARCH="${goarch}" $GO_LICENSES save ./... \
+    GOOS="${goos}" GOARCH="${goarch}" "$GO_LICENSES_BIN" save ./... \
         --save_path="${output_dir}/third-party" \
         --ignore github.com/cli/cli \
         --ignore github.com/alecthomas/chroma/v2 \
@@ -54,10 +66,6 @@ generate_licenses() {
 
 if [ "$1" = "--check" ]; then
     # Verify license generation works for all release platforms.
-    # This runs the same go-licenses report command that goreleaser pre-build hooks
-    # use, without writing to embed directories (avoids dirty git state).
-    # CI on every PR ensures we catch issues (e.g., template errors, go-licenses
-    # incompatibilities) before they block a release.
     platforms=("darwin:amd64" "darwin:arm64" "linux:amd64" "linux:arm64")
     tmpdir=$(mktemp -d)
     trap 'rm -rf "$tmpdir"' EXIT
