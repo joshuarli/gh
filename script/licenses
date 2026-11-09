@@ -13,14 +13,16 @@
 
 set -e
 
-# Install pinned version of go-licenses
-go install github.com/google/go-licenses/v2@3e084b0caf710f7bfead967567539214f598c0a2 # v2.0.1
+GO_LICENSES_VERSION="github.com/google/go-licenses/v2@3e084b0caf710f7bfead967567539214f598c0a2" # v2.0.1
 
-export PATH="$(go env GOPATH)/bin:$PATH"
+# Install pinned version of go-licenses
+go install "$GO_LICENSES_VERSION"
+
+GO_LICENSES="$(go env GOPATH)/bin/go-licenses"
 
 # Verify go-licenses is available
-if ! command -v go-licenses &> /dev/null; then
-    echo "Error: go-licenses is not installed or not on PATH"
+if [ ! -x "$GO_LICENSES" ]; then
+    echo "Error: go-licenses is not installed at $GO_LICENSES"
     exit 1
 fi
 
@@ -33,29 +35,28 @@ generate_licenses() {
     mkdir -p "${output_dir}"
 
     # Generate the report listing (name, license type, URL)
-    GOOS="${goos}" GOARCH="${goarch}" go-licenses report ./... \
+    GOOS="${goos}" GOARCH="${goarch}" "$GO_LICENSES" report ./... \
         --template .github/licenses.tmpl \
         --ignore github.com/cli/cli \
         > "${output_dir}/report.txt"
 
-    # Save license and notice files for all dependencies
+    # Save license files, stripping source code
     rm -rf "${output_dir}/third-party"
-    GOOS="${goos}" GOARCH="${goarch}" go-licenses save ./... \
+    GOOS="${goos}" GOARCH="${goarch}" "$GO_LICENSES" save ./... \
         --save_path="${output_dir}/third-party" \
         --ignore github.com/cli/cli \
-        --force 2>/dev/null || true
+        --force
 
     # Remove everything except LICENSE and NOTICE files. go-licenses save copies
-    # full source code for some licenses (e.g., MPL-2.0), but go:embed cannot
-    # include directories containing go.mod or .go files.
+    # entire dependency directories, including Go source code.
     if [ -d "${output_dir}/third-party" ]; then
         find "${output_dir}/third-party" -type f \
-            ! -iname "LICENSE*" \
-            ! -iname "LICENCE*" \
-            ! -iname "NOTICE*" \
-            ! -iname "COPYING*" \
-            ! -iname "PATENTS*" \
+            ! -iname 'license*' \
+            ! -iname 'notice*' \
+            ! -iname 'copying*' \
+            ! -iname 'unlicense*' \
             -delete
+        # Clean up empty directories left behind
         find "${output_dir}/third-party" -type d -empty -delete
     fi
 }
@@ -63,24 +64,21 @@ generate_licenses() {
 if [ "$1" = "--check" ]; then
     # Verify license generation works for all release platforms.
     # This runs the same go-licenses report command that goreleaser pre-build hooks
-    # will run at release time, for all 6 GOOS/GOARCH combinations. Running this in
+    # use, without writing to embed directories (avoids dirty git state).
     # CI on every PR ensures we catch issues (e.g., template errors, go-licenses
-    # incompatibilities, dependency resolution failures) before they block a release.
-    TEMPDIR="$(mktemp -d)"
-    trap "rm -fr ${TEMPDIR}" EXIT
+    # incompatibilities) before they block a release.
+    platforms=("darwin:amd64" "darwin:arm64" "linux:amd64" "linux:arm64")
+    tmpdir=$(mktemp -d)
+    trap 'rm -rf "$tmpdir"' EXIT
 
-    for platform in linux/386 linux/arm linux/amd64 linux/arm64 darwin/amd64 darwin/arm64; do
-        goos="${platform%/*}"
-        goarch="${platform#*/}"
-        generate_licenses "${goos}" "${goarch}" "${TEMPDIR}/${goos}-${goarch}"
+    for platform in "${platforms[@]}"; do
+        IFS=: read -r goos goarch <<< "$platform"
+        generate_licenses "$goos" "$goarch" "$tmpdir/$goos-$goarch"
     done
-
-    echo "License generation verified for all platforms."
-elif [ $# -eq 2 ]; then
+    echo "License generation check passed for all platforms."
+else
+    # Single platform mode: called by goreleaser pre-build hooks.
+    # Usage: ./script/licenses <GOOS> <GOARCH>
     generate_licenses "$1" "$2" "internal/licenses/embed/${1}-${2}"
     echo "Licenses written to internal/licenses/embed/${1}-${2}"
-else
-    echo "Usage: $0 <GOOS> <GOARCH>"
-    echo "       $0 --check"
-    exit 1
 fi
