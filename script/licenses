@@ -11,18 +11,25 @@
 #
 # The --check mode is used in CI to catch license generation issues before release.
 
-set -e
+set -euo pipefail
 
 GO_LICENSES_VERSION="github.com/google/go-licenses/v2@3e084b0caf710f7bfead967567539214f598c0a2" # v2.0.1
-GO_LICENSES_BIN="${GO_LICENSES_BIN:-$(go env GOPATH)/bin/go-licenses}"
+GO_LICENSES_BIN=""
 
 ensure_go_licenses() {
+    if [ -n "$GO_LICENSES_BIN" ] && [ -x "$GO_LICENSES_BIN" ]; then
+        return
+    fi
+    local bindir
+    bindir="${RUNNER_TEMP:-/tmp}/repomod-go-bin"
+    mkdir -p "$bindir"
+    GO_LICENSES_BIN="$bindir/go-licenses"
     if [ -x "$GO_LICENSES_BIN" ]; then
         return
     fi
     echo "Installing go-licenses for host..."
     # Build/install for the host; target GOOS/GOARCH are set by callers for analysis.
-    GOOS="$(go env GOHOSTOS)" GOARCH="$(go env GOHOSTARCH)" go install "$GO_LICENSES_VERSION"
+    GOBIN="$bindir" GOOS="$(go env GOHOSTOS)" GOARCH="$(go env GOHOSTARCH)" go install "$GO_LICENSES_VERSION"
 }
 
 generate_licenses() {
@@ -65,7 +72,6 @@ generate_licenses() {
 }
 
 if [ "$1" = "--check" ]; then
-    # Verify license generation works for all release platforms.
     platforms=("darwin:amd64" "darwin:arm64" "linux:amd64" "linux:arm64")
     tmpdir=$(mktemp -d)
     trap 'rm -rf "$tmpdir"' EXIT
@@ -76,8 +82,6 @@ if [ "$1" = "--check" ]; then
     done
     echo "License generation check passed for all platforms."
 else
-    # Single platform mode: called by goreleaser pre-build hooks.
-    # Usage: ./script/licenses <GOOS> <GOARCH>
     generate_licenses "$1" "$2" "internal/licenses/embed/${1}-${2}"
     echo "Licenses written to internal/licenses/embed/${1}-${2}"
 fi
