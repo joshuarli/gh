@@ -24,7 +24,7 @@ Darwin binaries are cross-compiled on Linux. The workflow does not sign or notar
 
 Before `go build`, the workflow runs `bash ./script/licenses "$GOOS" "$GOARCH"` for that matrix entry, the same hook `.goreleaser.yml` uses, so `report.txt` is embedded.
 
-The workflow zips each binary and publishes a GitHub pre-release on this repository. The tag is `release-<full git sha>`, and the release targets that commit.
+The workflow packages each binary in a deterministic `.tar.xz` archive and publishes a GitHub pre-release on this repository. The tag is `release-<full git sha>`, and the release targets that commit.
 
 ## Local build
 
