@@ -206,6 +206,18 @@ func isAccessDenied(err error) bool {
 }
 
 func rmrf(targets ...string) error {
+	for _, target := range targets {
+		info, err := os.Lstat(target)
+		if errors.Is(err, os.ErrNotExist) {
+			continue
+		}
+		if err != nil {
+			return err
+		}
+		if !info.IsDir() {
+			return fmt.Errorf("%s must be a local build directory", target)
+		}
+	}
 	args := append([]string{"rm", "-rf"}, targets...)
 	announce(args...)
 	for _, target := range targets {
